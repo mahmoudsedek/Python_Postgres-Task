@@ -1,0 +1,36 @@
+/* Python fucntion in postgres "plpython" */
+create or replace function call_model(sepal_length numeric, sepal_width numeric, petal_length numeric, petal_width numeric)
+returns character varying
+AS $$
+    import pickle
+    filepath = '/home/mahmoud/Desktop/ML_Model/ML_Model.sav'
+    knn = pickle.load(open(filepath, 'rb'))
+    y_pred = knn.predict([[sepal_length,sepal_width,petal_length,petal_width]])
+    y_pred = y_pred[0]
+    print(y_pred)
+
+    return y_pred
+$$ language 'plpython3u';
+
+
+select * from pg_language;
+CREATE EXTENSION plpython3u;
+
+
+/* Procedure to predict the species of the flower */
+create or replace function species_predict()
+returns trigger as
+$BODY$
+begin
+new.species = call_model(new.sepal_length, new.sepal_width, new.petal_length, new.petal_width);
+return new;
+end;
+$BODY$
+language plpgsql;
+
+
+/* Trigger before inserting the new row in "Iris" table */
+create trigger prediction_triger
+before insert on "Iris"
+for each row
+execute procedure species_predict();
